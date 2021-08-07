@@ -29,8 +29,6 @@ func main() {
 		log.Fatalf("[ERROR] %v", err)
 	}
 
-	fmt.Println(appConfig)
-
 	configStorage := streaming.NewConfigStorage(configFilePath())
 	streamingServiceConfig, err := configStorage.Load()
 	if err != nil {
@@ -56,6 +54,7 @@ func main() {
 			log.Println("Starting application...")
 			err := runApp(httpServer, mqttListener, service, panicHandler)
 			if err != nil {
+				log.Printf("[ERROR] %v", err)
 				log.Println("Stopping application...")
 				_ = stopApp(httpServer, mqttListener, service)
 			}
@@ -81,7 +80,12 @@ func main() {
 	}
 }
 
-func runApp(httpServer *httpapi.Server, mqttListener *mqttapi.Listener, service *streaming.Service, panicHandler func(v interface{})) error {
+func runApp(
+	httpServer *httpapi.Server,
+	mqttListener *mqttapi.Listener,
+	service *streaming.Service,
+	panicHandler func(v interface{}),
+) error {
 	errs := make(chan error)
 
 	go func() {
@@ -116,7 +120,11 @@ func stopApp(httpServer *httpapi.Server, mqttListener *mqttapi.Listener, service
 	return errs
 }
 
-func runHTTPServer(httpServer *httpapi.Server, service *streaming.Service, panicHandler func(v interface{})) error {
+func runHTTPServer(
+	httpServer *httpapi.Server,
+	service *streaming.Service,
+	panicHandler func(v interface{}),
+) error {
 	httpServer.
 		Register("/radio/power", httpapi.WrapHandler(
 			httpapi.RadioPowerHandler(service),
@@ -142,7 +150,11 @@ func runHTTPServer(httpServer *httpapi.Server, service *streaming.Service, panic
 	return httpServer.Listen()
 }
 
-func runMQTTServer(mqttListener *mqttapi.Listener, service *streaming.Service, panicHandler func(v interface{})) error {
+func runMQTTServer(
+	mqttListener *mqttapi.Listener,
+	service *streaming.Service,
+	panicHandler func(v interface{}),
+) error {
 	mqttListener.
 		Register("button_1_click", mqttapi.WrapHandler(
 			mqttapi.RadioPowerHandler(service),

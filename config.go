@@ -12,7 +12,7 @@ type Config struct {
 	}
 
 	MQTTServer struct {
-		Address  string `env:"MQTT_SERVER_ADDRESS,default=:7070"`
+		Address  string `env:"MQTT_SERVER_ADDRESS,default=localhost:1883"`
 		User     string `env:"MQTT_SERVER_USER,default=admin"`
 		Password string `env:"MQTT_SERVER_PASSWORD,default=admin"`
 		Topic    string `env:"MQTT_SERVER_Topic,default=zigbee2mqtt/0x00124b000cc8d641/action"`
