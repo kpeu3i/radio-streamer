@@ -14,7 +14,7 @@ Created for my own purposes, so any guarantees of backward compatibility for the
 | GET /radio/volume/up | Volume Up |
 | GET /radio/volume/down | Volume Down |
 
-## MQTT API (CR11S8UZ
+## MQTT API (CR11S8UZ)
 
 | Button | Binding |
 | --- | --- |
