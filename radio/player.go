@@ -7,9 +7,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/hajimehoshi/oto"
-	"github.com/itchyny/volume-go"
+	"github.com/hajimehoshi/oto/v2"
 	"github.com/tosone/minimp3"
+)
+
+const (
+	contextSampleRate  = 44100
+	contextNumChannels = 2
 )
 
 type ErrorHandler func(err error)
@@ -19,8 +23,8 @@ type Player struct {
 	stream       io.ReadCloser
 	decoder      *minimp3.Decoder
 	context      *oto.Context
-	player       *oto.Player
-	isPlaying    bool
+	player       oto.Player
+	volume       float64
 	errorHandler ErrorHandler
 	index        int
 	play         chan string
@@ -30,6 +34,7 @@ type Player struct {
 func NewPlayer(streams ...string) *Player {
 	return &Player{
 		streams: streams,
+		volume:  1,
 		play:    make(chan string),
 		stop:    make(chan struct{}),
 		errorHandler: func(err error) {
@@ -43,7 +48,7 @@ func (p *Player) Play(streamNum int) {
 		return
 	}
 
-	if p.isPlaying {
+	if p.IsPlaying() {
 		return
 	}
 
@@ -73,7 +78,7 @@ func (p *Player) Play(streamNum int) {
 }
 
 func (p *Player) Prev() int {
-	if !p.isPlaying {
+	if !p.IsPlaying() {
 		return p.index + 1
 	}
 
@@ -83,7 +88,7 @@ func (p *Player) Prev() int {
 }
 
 func (p *Player) Next() int {
-	if !p.isPlaying {
+	if !p.IsPlaying() {
 		return p.index + 1
 	}
 
@@ -93,23 +98,31 @@ func (p *Player) Next() int {
 }
 
 func (p *Player) IsPlaying() bool {
-	return p.isPlaying
+	return p.player != nil && p.player.IsPlaying()
 }
 
 func (p *Player) OnError(handler ErrorHandler) {
 	p.errorHandler = handler
 }
 
-func (p *Player) Volume() (int, error) {
-	return volume.GetVolume()
+func (p *Player) Volume() float64 {
+	if p.IsPlaying() {
+		return p.player.Volume()
+	}
+
+	return p.volume
 }
 
-func (p *Player) SetVolume(v int) error {
-	return volume.SetVolume(v)
+func (p *Player) SetVolume(v float64) {
+	if p.IsPlaying() {
+		p.player.SetVolume(v)
+	}
+
+	p.volume = v
 }
 
 func (p *Player) Stop() {
-	if !p.isPlaying {
+	if !p.IsPlaying() {
 		return
 	}
 
@@ -122,32 +135,10 @@ func (p *Player) Stop() {
 }
 
 func (p *Player) Close() error {
-	err := p.player.Close()
-	if err != nil {
-		return err
-	}
-
-	err = p.context.Close()
-	if err != nil {
-		log.Printf("Failed to close context: %s\n", err)
-	}
-
-	p.decoder.Close()
-
-	err = p.stream.Close()
-	if err != nil {
-		return err
-	}
-
-	p.stream = nil
-	p.decoder = nil
-	p.context = nil
-	p.player = nil
-
-	return nil
+	return p.free()
 }
 
-func (p *Player) init(stream string) error {
+func (p *Player) doPlay(stream string) error {
 	response, err := http.Get(stream)
 	if err != nil {
 		return err
@@ -162,15 +153,26 @@ func (p *Player) init(stream string) error {
 		return errors.New("cannot start decoding")
 	}
 
-	context, err := oto.NewContext(decoder.SampleRate, decoder.Channels, 2, 4096)
-	if err != nil {
-		return err
+	// TODO https://github.com/hajimehoshi/oto/issues/149
+	if p.context == nil {
+		var (
+			context *oto.Context
+			ready   chan struct{}
+		)
+
+		context, ready, err = oto.NewContext(contextSampleRate, contextNumChannels, 2)
+		if err != nil {
+			return err
+		}
+
+		<-ready
+
+		p.context = context
 	}
 
 	p.stream = response.Body
 	p.decoder = decoder
-	p.context = context
-	p.player = context.NewPlayer()
+	p.player = p.context.NewPlayer(decoder)
 
 	log.Printf(
 		"Audio stream initialized (url: %s, bitrate: %d, samplerate: %d, channels: %d)\n",
@@ -180,51 +182,57 @@ func (p *Player) init(stream string) error {
 		p.decoder.Channels,
 	)
 
+	p.player.SetVolume(p.volume)
+	p.player.Play()
+
 	return nil
 }
 
 func (p *Player) run(index int) error {
-	err := p.init(p.exactStream(index))
+	err := p.doPlay(p.exactStream(index))
 	if err != nil {
 		return err
 	}
 
-	p.isPlaying = true
-	defer func() {
-		p.isPlaying = false
-	}()
-
 	for {
 		select {
 		case url := <-p.play:
-			err := p.Close()
+			err := p.free()
 			if err != nil {
 				return err
 			}
 
-			err = p.init(url)
+			err = p.doPlay(url)
 			if err != nil {
 				return err
 			}
+
 		case <-p.stop:
 			return nil
-		default:
-			data := make([]byte, 512)
-			_, err := p.decoder.Read(data)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-
-				return err
-			}
-
-			_, err = p.player.Write(data)
-			if err != nil {
-				return err
-			}
 		}
 	}
+}
+
+func (p *Player) free() error {
+	err := p.player.Close()
+	if err != nil {
+		return err
+	}
+
+	p.decoder.Close()
+
+	err = p.stream.Close()
+	if err != nil {
+		return err
+	}
+
+	p.stream = nil
+	p.decoder = nil
+	// TODO https://github.com/hajimehoshi/oto/issues/149
+	// p.context = nil
+	p.player = nil
+
+	return nil
 }
 
 func (p *Player) currentStream() string {

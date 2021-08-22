@@ -1,6 +1,8 @@
 package streaming
 
 import (
+	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/kpeu3i/radio-streamer/radio"
@@ -17,8 +19,8 @@ type RadioPlayer interface {
 	Next() int
 	IsPlaying() bool
 	OnError(handler radio.ErrorHandler)
-	Volume() (int, error)
-	SetVolume(v int) error
+	Volume() float64
+	SetVolume(v float64)
 	Stop()
 	Close() error
 }
@@ -33,61 +35,62 @@ func NewService(configStorage ConfigStorage, radioPlayer RadioPlayer) *Service {
 	return &Service{configStorage: configStorage, radioPlayer: radioPlayer}
 }
 
-func (a *Service) PlayRadio() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) PlayRadio() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if a.radioPlayer.IsPlaying() {
+	if s.radioPlayer.IsPlaying() {
 		return nil
 	}
 
-	config, err := a.configStorage.Load()
+	config, err := s.configStorage.Load()
 	if err != nil {
 		return err
 	}
 
-	err = a.radioPlayer.SetVolume(config.CurrentVolume)
+	volume, err := strconv.ParseFloat(config.CurrentVolume, 64)
 	if err != nil {
 		return err
 	}
 
-	a.radioPlayer.Play(config.CurrentStream)
+	s.radioPlayer.SetVolume(volume)
+	s.radioPlayer.Play(config.CurrentStream)
 
 	return nil
 }
 
-func (a *Service) StopRadio() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) StopRadio() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if !a.radioPlayer.IsPlaying() {
+	if !s.radioPlayer.IsPlaying() {
 		return
 	}
 
-	a.radioPlayer.Stop()
+	s.radioPlayer.Stop()
 }
 
-func (a *Service) IsRadioPlaying() bool {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) IsRadioPlaying() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	return a.radioPlayer.IsPlaying()
+	return s.radioPlayer.IsPlaying()
 }
 
-func (a *Service) PrevRadioStream() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) PrevRadioStream() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	num := a.radioPlayer.Prev()
+	num := s.radioPlayer.Prev()
 
-	config, err := a.configStorage.Load()
+	config, err := s.configStorage.Load()
 	if err != nil {
 		return err
 	}
 
 	config.CurrentStream = num
 
-	err = a.configStorage.Store(config)
+	err = s.configStorage.Store(config)
 	if err != nil {
 		return err
 	}
@@ -95,20 +98,20 @@ func (a *Service) PrevRadioStream() error {
 	return nil
 }
 
-func (a *Service) NextRadioStream() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) NextRadioStream() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	num := a.radioPlayer.Next()
+	num := s.radioPlayer.Next()
 
-	config, err := a.configStorage.Load()
+	config, err := s.configStorage.Load()
 	if err != nil {
 		return err
 	}
 
 	config.CurrentStream = num
 
-	err = a.configStorage.Store(config)
+	err = s.configStorage.Store(config)
 	if err != nil {
 		return err
 	}
@@ -116,33 +119,27 @@ func (a *Service) NextRadioStream() error {
 	return nil
 }
 
-func (a *Service) UpVolume(step int) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) UpVolume(step float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	volume, err := a.radioPlayer.Volume()
-	if err != nil {
-		return err
-	}
+	volume := s.radioPlayer.Volume()
 
 	volume += step
-	if volume > 100 {
-		volume = 100
+	if volume > 1 {
+		volume = 1
 	}
 
-	err = a.radioPlayer.SetVolume(volume)
+	s.radioPlayer.SetVolume(volume)
+
+	config, err := s.configStorage.Load()
 	if err != nil {
 		return err
 	}
 
-	config, err := a.configStorage.Load()
-	if err != nil {
-		return err
-	}
+	config.CurrentVolume = fmt.Sprintf("%.2f", volume)
 
-	config.CurrentVolume = volume
-
-	err = a.configStorage.Store(config)
+	err = s.configStorage.Store(config)
 	if err != nil {
 		return err
 	}
@@ -150,33 +147,27 @@ func (a *Service) UpVolume(step int) error {
 	return nil
 }
 
-func (a *Service) DownVolume(step int) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) DownVolume(step float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	volume, err := a.radioPlayer.Volume()
-	if err != nil {
-		return err
-	}
+	volume := s.radioPlayer.Volume()
 
 	volume -= step
 	if volume < 0 {
 		volume = 0
 	}
 
-	err = a.radioPlayer.SetVolume(volume)
+	s.radioPlayer.SetVolume(volume)
+
+	config, err := s.configStorage.Load()
 	if err != nil {
 		return err
 	}
 
-	config, err := a.configStorage.Load()
-	if err != nil {
-		return err
-	}
+	config.CurrentVolume = fmt.Sprintf("%.2f", volume)
 
-	config.CurrentVolume = volume
-
-	err = a.configStorage.Store(config)
+	err = s.configStorage.Store(config)
 	if err != nil {
 		return err
 	}
@@ -184,13 +175,13 @@ func (a *Service) DownVolume(step int) error {
 	return nil
 }
 
-func (a *Service) Close() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (s *Service) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if !a.radioPlayer.IsPlaying() {
+	if !s.radioPlayer.IsPlaying() {
 		return nil
 	}
 
-	return a.radioPlayer.Close()
+	return s.radioPlayer.Close()
 }

@@ -1,5 +1,5 @@
 package mqttapi
 
 const (
-	volumeStep = 5
+	volumeStep = 0.1
 )

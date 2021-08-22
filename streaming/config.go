@@ -10,7 +10,7 @@ import (
 type Config struct {
 	Streams       []string `yaml:"streams"`
 	CurrentStream int      `yaml:"current_stream"`
-	CurrentVolume int      `yaml:"current_volume"`
+	CurrentVolume string   `yaml:"current_volume"`
 }
 
 type ConfigFileStorage struct {
