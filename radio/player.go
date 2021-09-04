@@ -155,12 +155,7 @@ func (p *Player) doPlay(stream string) error {
 
 	// TODO https://github.com/hajimehoshi/oto/issues/149
 	if p.context == nil {
-		var (
-			context *oto.Context
-			ready   chan struct{}
-		)
-
-		context, ready, err = oto.NewContext(contextSampleRate, contextNumChannels, 2)
+		context, ready, err := oto.NewContext(contextSampleRate, contextNumChannels, 2)
 		if err != nil {
 			return err
 		}
