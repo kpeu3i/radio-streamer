@@ -160,6 +160,13 @@ func (p *Player) doPlay(stream string) error {
 			return err
 		}
 
+		go func() {
+			err := context.Run()
+			if err != nil {
+				p.errorHandler(err)
+			}
+		}()
+
 		<-ready
 
 		p.context = context

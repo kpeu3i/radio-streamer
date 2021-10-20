@@ -9,3 +9,5 @@ require (
 	github.com/tosone/minimp3 v1.0.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
+
+replace github.com/hajimehoshi/oto/v2 => github.com/kpeu3i/oto/v2 v2.1.0-alpha.2.0.20211020195521-692c6ec4b19a
