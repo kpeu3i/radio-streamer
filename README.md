@@ -2,7 +2,7 @@
 
 A small CLI utility to manage radio streams via the HTTP and MQTT API.
 
-Created for my own purposes, so any guarantees of backward compatibility for the future releases.
+Created for my own purposes, so no guarantees of backward compatibility for future releases.
 
 ## HTTP API
 
