@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/hajimehoshi/oto/v2"
 	"github.com/tosone/minimp3"
@@ -153,7 +154,7 @@ func (p *Player) doPlay(stream string) error {
 		return errors.New("cannot start decoding")
 	}
 
-	// TODO https://github.com/hajimehoshi/oto/issues/149
+	// Check for more details https://github.com/hajimehoshi/oto/issues/149
 	if p.context == nil {
 		context, ready, err := oto.NewContext(contextSampleRate, contextNumChannels, 2)
 		if err != nil {
@@ -161,15 +162,25 @@ func (p *Player) doPlay(stream string) error {
 		}
 
 		go func() {
-			err := context.Run()
-			if err != nil {
-				p.errorHandler(err)
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				err := context.Err()
+				if err != nil {
+					p.errorHandler(err)
+				}
 			}
 		}()
 
 		<-ready
 
 		p.context = context
+	} else {
+		err = p.context.Resume()
+		if err != nil {
+			return err
+		}
 	}
 
 	p.stream = response.Body
@@ -228,10 +239,13 @@ func (p *Player) free() error {
 		return err
 	}
 
+	err = p.context.Suspend()
+	if err != nil {
+		return err
+	}
+
 	p.stream = nil
 	p.decoder = nil
-	// TODO https://github.com/hajimehoshi/oto/issues/149
-	// p.context = nil
 	p.player = nil
 
 	return nil
