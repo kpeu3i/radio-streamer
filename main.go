@@ -18,6 +18,8 @@ import (
 
 const (
 	configFilepath = "config.yaml"
+
+	appRestartIntervalHours = 3
 )
 
 func main() {
@@ -36,6 +38,7 @@ func main() {
 	}
 
 	errs := make(chan error)
+	wasPlaying := false
 
 	for {
 		radioPlayer := radio.NewPlayer(streamingServiceConfig.Streams...)
@@ -50,13 +53,24 @@ func main() {
 		service := streaming.NewService(configStorage, radioPlayer)
 		panicHandler := func(v interface{}) { errs <- fmt.Errorf("%v", v) }
 
-		go func() {
-			log.Println("Starting application...")
-			err := runApp(httpServer, mqttListener, service, panicHandler)
+		if wasPlaying {
+			err = service.PlayRadio()
 			if err != nil {
 				log.Printf("[ERROR] %v", err)
-				log.Println("Stopping application...")
-				_ = stopApp(httpServer, mqttListener, service)
+			}
+		}
+
+		now := time.Now()
+		nextRestartDuration := nextTickDuration(now.Hour()+appRestartIntervalHours, now.Minute(), now.Second())
+		restartTimer := time.NewTimer(nextRestartDuration)
+
+		go func() {
+			log.Println("Starting application...")
+			log.Printf("Scheduled application restart time: %s", now.Add(nextRestartDuration).Format(time.RFC3339))
+
+			err := runApp(httpServer, mqttListener, service, panicHandler)
+			if err != nil {
+				errs <- err
 			}
 		}()
 
@@ -64,9 +78,18 @@ func main() {
 		case <-signals:
 			log.Println("Got termination signal")
 			log.Println("Stopping application...")
+
 			_ = stopApp(httpServer, mqttListener, service)
 
 			return
+		case <-restartTimer.C:
+			log.Println("Got restart signal")
+			log.Println("Stopping application...")
+
+			wasPlaying = service.IsRadioPlaying()
+			restartTimer.Stop()
+			_ = stopApp(httpServer, mqttListener, service)
+			time.Sleep(appConfig.ErrorHandling.RecoveryDelay)
 		case err = <-errs:
 			if err == nil {
 				return
@@ -74,6 +97,8 @@ func main() {
 
 			log.Printf("Got runtime error: %v", err)
 			log.Println("Stopping application...")
+
+			wasPlaying = service.IsRadioPlaying()
 			_ = stopApp(httpServer, mqttListener, service)
 			time.Sleep(appConfig.ErrorHandling.RecoveryDelay)
 		}
@@ -102,17 +127,17 @@ func runApp(
 func stopApp(httpServer *httpapi.Server, mqttListener *mqttapi.Listener, service *streaming.Service) []error {
 	var errs []error
 
-	err := service.Close()
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = httpServer.Close()
+	err := httpServer.Close()
 	if err != nil {
 		errs = append(errs, err)
 	}
 
 	err = mqttListener.Close()
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = service.Close()
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -184,4 +209,25 @@ func configFilePath() string {
 	ex, _ := os.Executable()
 
 	return path.Join(filepath.Dir(ex), configFilepath)
+}
+
+func nextTickDuration(hour, min, sec int) time.Duration {
+	now := time.Now()
+
+	nextTick := time.Date(
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		hour,
+		min,
+		sec,
+		0,
+		time.Local,
+	)
+
+	if nextTick.Before(now) {
+		nextTick = nextTick.Add(24 * time.Hour)
+	}
+
+	return nextTick.Sub(now)
 }

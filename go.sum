@@ -2,8 +2,8 @@ github.com/eclipse/paho.mqtt.golang v1.3.3 h1:Fh1zsLniMFJByLqKrSB9ZRjkbpU0k1Xne2
 github.com/eclipse/paho.mqtt.golang v1.3.3/go.mod h1:eTzb4gxwwyWpqBUHGQZ4ABAV7+Jgm1PklsYT/eo8Hcc=
 github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/hajimehoshi/oto/v2 v2.1.0-alpha.2.0.20211022061803-81e245b09d0b h1:DyHaCwXYwsZMLawB9G7uDP18WHvwO8KXm9JROxTY5ew=
-github.com/hajimehoshi/oto/v2 v2.1.0-alpha.2.0.20211022061803-81e245b09d0b/go.mod h1:rUKQmwMkqmRxe+IAof9+tuYA2ofm8cAWXFmSfzDN8vQ=
+github.com/hajimehoshi/oto/v2 v2.1.0-alpha.4 h1:6NIzk6tIJIOUB7mB00FtE5pz0Yt9LDBPcGirBIteJsI=
+github.com/hajimehoshi/oto/v2 v2.1.0-alpha.4/go.mod h1:rUKQmwMkqmRxe+IAof9+tuYA2ofm8cAWXFmSfzDN8vQ=
 github.com/joeshaw/envdecode v0.0.0-20200121155833-099f1fc765bd h1:nIzoSW6OhhppWLm4yqBwZsKJlAayUu5FGozhrF3ETSM=
 github.com/joeshaw/envdecode v0.0.0-20200121155833-099f1fc765bd/go.mod h1:MEQrHur0g8VplbLOv5vXmDzacSaH9Z7XhcgsSh1xciU=
 github.com/tosone/minimp3 v1.0.1 h1:5ajMIgZKlQqJdX3KJj/wb0o1oNef9S3fuLr9T5YwQqw=
