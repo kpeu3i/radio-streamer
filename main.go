@@ -56,7 +56,7 @@ func main() {
 		if wasPlaying {
 			err = service.PlayRadio()
 			if err != nil {
-				log.Printf("[ERROR] %v", err)
+				log.Fatalf("[ERROR] %v", err)
 			}
 		}
 
@@ -96,11 +96,7 @@ func main() {
 			}
 
 			log.Printf("Got runtime error: %v", err)
-			log.Println("Stopping application...")
-
-			wasPlaying = service.IsRadioPlaying()
-			_ = stopApp(httpServer, mqttListener, service)
-			time.Sleep(appConfig.ErrorHandling.RecoveryDelay)
+			log.Fatalf("[ERROR] %v", err)
 		}
 	}
 }

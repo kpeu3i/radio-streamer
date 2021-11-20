@@ -1,0 +1,15 @@
+[Unit]
+Description=RadioStreamer
+After=syslog.target network.target sound.target
+
+[Service]
+Type=simple
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStart=/home/pi/radio-streamer/radio-streamer
+WorkingDirectory=/home/pi/radio-streamer
+Restart=always
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
