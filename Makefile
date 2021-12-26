@@ -64,6 +64,10 @@ service-restart:
 service-status:
 	@ssh ${REMOTE_HOST} "sudo service radio-streamer status"
 
+.PHONY: service-logs
+service-logs:
+	@ssh ${REMOTE_HOST} "journalctl -u radio-streamer"
+
 .PHONY: ssh
 ssh:
 	@ssh ${REMOTE_HOST}
