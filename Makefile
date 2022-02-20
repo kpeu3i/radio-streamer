@@ -45,7 +45,7 @@ service-init:
 	@ssh ${REMOTE_HOST} sudo cp /home/pi/radio-streamer/radio-streamer.service /etc/systemd/system/radio-streamer.service
 	@ssh ${REMOTE_HOST} rm -f /home/pi/radio-streamer/radio-streamer.service
 	@ssh ${REMOTE_HOST} sudo systemctl daemon-reload
-	@ssh ${REMOTE_HOST} systemctl enable radio-streamer
+	@ssh ${REMOTE_HOST} sudo systemctl enable radio-streamer
 	@ssh ${REMOTE_HOST} sudo systemctl start radio-streamer
 
 .PHONY: service-start
@@ -54,7 +54,7 @@ service-start:
 
 .PHONY: service-stop
 service-stop:
-	@ssh ${REMOTE_HOST} "sudo service radio-streamer stop"
+	@ssh ${REMOTE_HOST} "sudo service radio-streamer stop 2>/dev/null || true"
 
 .PHONY: service-restart
 service-restart:
